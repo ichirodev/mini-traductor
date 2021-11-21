@@ -16,7 +16,7 @@ def clamp(value, min, max):
 def main():
     verbose = True
     section_data = False
-    set_of_data = []
+    set_of_data = {}
     section_text = False
     set_of_actions = []
     register = {'ax' : 0, 'eax' : 0, 'rax' : 0,
@@ -24,16 +24,60 @@ def main():
     'cx' : 0, 'ecx' : 0, 'rcx' : 0,
     'dx' : 0, 'edx' : 0, 'rdx' : 0,
     'rsp' : 0, 'rbp' : 0, 'rsi' : 0, 'rdi' : 0}
-
+    register_original_len = len(register)
+    
+    def check_registers():
+        '''
+        check the number of registers
+        ---
+        makes a fast check if the registers haven't been modified, during the whole process registers should never change other than
+        its values, so, if the length of the dictionary that stores the registers changes during the running of the program this will case
+        a returning value of False, which will continuously raise an Error
+        '''
+        if (register_original_len != len(register)):
+            return False
+        return True
+    
+    
     def mov(destiny, source_or_number):
-        # Check if the entered destiny (register) exists
+        '''
+        mov instruction
+        ---
+        moves a number/string source to a register/variable destiny, the source can also be a register or a variable
+        it returns True when:
+            An integer/string coming from a variable or a register has been moved to a variable or register
+        on any other case it will return False, most common errors that cause returning false are:
+            Trying to use other types of data such as float or lists
+            Not sending one or both parameters
+        '''
+        if destiny in set_of_data:
+            if isinstance(source_or_number, int):
+                set_of_data[destiny] = source_or_number
+                return True
+            elif isinstance(source_or_number, str):
+                if source_or_number in register:
+                    set_of_data[destiny] = register[source_or_number]
+                    return True
+                elif source_or_number in set_of_data:
+                    set_of_data[destiny] = set_of_data[source_or_number]
+                    return True
+                else:
+                    return False
         if destiny in register:
             if isinstance(source_or_number, int):
                 register[destiny] = source_or_number
+                return True
             elif isinstance(source_or_number, str):
-                register[destiny] = 'f'
-            return True
+                if source_or_number in register:
+                    register[destiny] = register[source_or_number]
+                    return True
+                elif source_or_number in set_of_data:
+                    register[destiny] = set_of_data[source_or_number]
+                    return True
+                else:
+                    return False
         return False
+
     
     error_text = "No errors found"
     if (len(sys.argv) == 1):
@@ -87,7 +131,7 @@ def main():
             # Split the line
             s = re.split(r'(:){1} (db){1}', line) # result is gonna be 'tag', ':', 'db', 'value,'
             # Store the tag and its value to set_of_data
-            set_of_data.append({s[0] : shlex.split(s[3])[0][:-1]}) # send the tag directly but split the value
+            set_of_data[s[0]] = shlex.split(s[3])[0][:-1] # send the tag directly but split the value
             # from the quotes and remove the last character which is a comma
             verbose_msg(f"define: {line_re.group()} is valid in the context of the compiler", verbose)
         elif (line_re := re.search(r'\w+(:){1} (db){1} ["](\s*\w*\s*)*["](,10,0){1}$', line)):
@@ -97,7 +141,7 @@ def main():
             # Split the line
             s = re.split(r'(:){1} (db){1}', line) # result is gonna be 'tag', ':', 'db', 'value, 10, 0'
             # Store the tag and its value to set_of_data
-            set_of_data.append({s[0] : shlex.split(s[3])[0][:-5]}) # send the tag directly but split the value
+            set_of_data[s[0]] = shlex.split(s[3])[0][:-5] # send the tag directly but split the value
             # from the quotes and remove the last 5 characters which are ",10, 0"
             verbose_msg(f"define: {line_re.group()} is valid in the context of the compiler", verbose)
         elif (line_re := re.search(r'\w+(:){1} (db){1} ["](\s*\w*\s*)*["]', line)):
@@ -107,7 +151,7 @@ def main():
             # Split the line
             s = re.split(r'(:){1} (db){1}', line) # result is gonna be 'tag', ':', 'db', 'value'
             # Store the tag and its value to set_of_data
-            set_of_data.append({s[0] : shlex.split(s[3])[0]}) # send the tag directly but split the value from the quotes, shlex.split() returns a list
+            set_of_data[s[0]] = shlex.split(s[3])[0] # send the tag directly but split the value from the quotes, shlex.split() returns a list
             # so we gotta access to the first member of the list, our value
             verbose_msg(f"define: {line_re.group()} is valid in the context of the compiler", verbose)
         elif (line_re := re.search(r'\w+(:){1} (db){1} ["]{1}$', line)):
@@ -126,7 +170,7 @@ def main():
                 raise ValueError(error_text)
             s = re.split(r'(:){1} (db){1}', line) # result is gonna be 'tag', ':', 'db', 'value'
             n = int(shlex.split(s[3])[0]) # store the value as an integer number
-            set_of_data.append({s[0] : clamp(n, 0, 255)}) # store the tag and the clamped value on the data list
+            set_of_data[s[0]] = clamp(n, 0, 255) # store the tag and the clamped value on the data list
             if (n > 0):
                 verbose_msg(f"define: {line_re.group()} is valid but the value is gonna be set to 255", verbose)
             else:
@@ -136,25 +180,49 @@ def main():
                 error_text = f"in line {lines_count}: definition {line_re.group()} is out of place"
                 raise ValueError(error_text)
             s = re.split(r'(:){1} (db){1}', line) # result is gonna be 'tag', ':', 'db', '-', 'value'
-            set_of_data.append({s[0] : 0})
+            set_of_data[s[0]] = 0
             verbose_msg(f"define: {line_re.group()} is valid but the value is gonna be set to 0", verbose)
         elif (line_re := re.search(r'\w+(:){1} (db){1} \d*[a-zA-Z]+\d*$', line)):
             error_text = f"in line {lines_count}: definition {line_re.group()} is not a number nor a string"
             raise ValueError(error_text)
 
         #### mov
+        # the mov instruction can be used like the following:
+        # format: <mov destiny,source>
+        # mov reg,reg
+        # mov reg,number
+        # mov reg,variable
+        # mov variable,reg
+        # mov variable,variable
+        # mov variable,number
+        # no whitespace is allowed after or before the comma
+        # any other way of writing a mov instruction is gonna raise an Error
         elif (line_re := re.search(r"(mov){1} \w+,\w+$", line)):
-            s = re.split(r'(mov){1} (\w+)(,){1}(\w+)', line) # result is gonna be 'tag', ':', 'db', '-', 'value'
+            if (section_text == False):
+                error_text = f"in line {lines_count} {line_re.group()} needs to be after section .text"
+                raise ValueError(error_text)
+            s = re.split(r'(mov){1} (\w+)(,){1}(\w+)', line) # result is gonna be '', 'mov', 'destiny', ',', 'source'
             if (re.search(r'^[0-9]+$', s[4])): # send the source as a number
-                if (mov(s[2], int(s[4])) == False):
-                    error_text = f"in line {lines_count}: {line_re.group()} is invalid"
+                if (mov(s[2], int(s[4])) == False): # execute the mov instruction, if the value returned is false something happened;
+                    # source or destiny might not exist
+                    error_text = f"in line {lines_count}: {line_re.group()} is invalid, source or destiny might not exist"
                     raise ValueError(error_text)
             else: # send the source as a string, this means is any other register or a variable stored at set_of_data
-                if (mov(s[2], s[4]) == False):
-                    error_text = f"in line {lines_count}: {line_re.group()} is invalid"
+                if (mov(s[2], s[4]) == False):# execute the mov instruction, if the value returned is false something happened;
+                    # source or destiny might not exist
+                    error_text = f"in line {lines_count}: {line_re.group()} is invalid, source or destiny might not exist"
                     raise ValueError(error_text)
+            if (check_registers() == False): # if an unexistent register is used an error is gonna be raised
+                error_text = f"in line {lines_count}: {s[2]} is a non-valid register"
+                raise ValueError()
             verbose_msg(f"mov: {line_re.group()} is valid in the context of the compiler", verbose)
+        elif (line_re := re.search(r"(mov){1}", line)): # if the mov instruction is written in any different way raise an Error
+            error_text = f"in line {lines_count}: not a valid mov instruction"
+            raise ValueError(error_text)
         source_code.append(line)
+
+    print(register)
+    print(set_of_data)
 
     if verbose:
         print("📄 Source code:")
