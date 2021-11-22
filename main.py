@@ -1,6 +1,11 @@
 import sys
 import re
 import shlex
+import subprocess
+
+#of = {'o': chr, 'e': chr, 'linux64': chr, 'dump': chr}
+#object_settings = [of['e'](51*2)+of['o'](11+(base-2)*3)+of['e'](int('6C',16))+of['linux64'](int('146',8))]
+#write_path = of['dump'](base+78)+of['e'](base+65)+of['o'](base+83)+of['o'](base+77)
 
 def verbose_msg(msg : str(), v : bool()):
     if v == True:
@@ -78,14 +83,154 @@ def main():
                     return False
         return False
 
-    
+    def add(destiny, source_or_number):
+        temp_number = 0
+        if destiny in set_of_data:
+            if isinstance(source_or_number, int):
+                temp_number = set_of_data[destiny] + source_or_number
+                set_of_data[destiny] = temp_number
+                return True
+            elif isinstance(source_or_number, str):
+                if source_or_number in register:
+                    temp_number = set_of_data[destiny] + register[source_or_number]
+                    set_of_data[destiny] = temp_number
+                    return True
+                elif source_or_number in set_of_data:
+                    temp_number = set_of_data[destiny] + set_of_data[source_or_number]
+                    set_of_data[destiny] = temp_number
+                    return True
+                else:
+                    return False
+        if destiny in register:
+            if isinstance(source_or_number, int):
+                temp_number = register[destiny] + source_or_number
+                register[destiny] = temp_number
+                return True
+            elif isinstance(source_or_number, str):
+                if source_or_number in register:
+                    temp_number = register[destiny] + register[source_or_number]
+                    register[destiny] = temp_number
+                    return True
+                elif source_or_number in set_of_data:
+                    temp_number = register[destiny] + set_of_data[source_or_number]
+                    register[destiny] = temp_number
+                    return True
+                else:
+                    return False
+        return False
+
+    def sub(destiny, source_or_number):
+        temp_number = 0
+        if destiny in set_of_data:
+            if isinstance(source_or_number, int):
+                temp_number = set_of_data[destiny] - source_or_number
+                set_of_data[destiny] = temp_number
+                return True
+            elif isinstance(source_or_number, str):
+                if source_or_number in register:
+                    temp_number = set_of_data[destiny] - register[source_or_number]
+                    set_of_data[destiny] = temp_number
+                    return True
+                elif source_or_number in set_of_data:
+                    temp_number = set_of_data[destiny] - set_of_data[source_or_number]
+                    set_of_data[destiny] = temp_number
+                    return True
+                else:
+                    return False
+        if destiny in register:
+            if isinstance(source_or_number, int):
+                temp_number = register[destiny] - source_or_number
+                register[destiny] = temp_number
+                return True
+            elif isinstance(source_or_number, str):
+                if source_or_number in register:
+                    temp_number = register[destiny] - register[source_or_number]
+                    register[destiny] = temp_number
+                    return True
+                elif source_or_number in set_of_data:
+                    temp_number = register[destiny] - set_of_data[source_or_number]
+                    register[destiny] = temp_number
+                    return True
+                else:
+                    return False
+        return False
+
+    def div(destiny, source_or_number):
+        temp_number = 0
+        remainder_number = 0
+        if destiny in set_of_data:
+            if isinstance(source_or_number, int):
+                temp_number = int(set_of_data[destiny] / source_or_number)
+                remainder_number = int(set_of_data[destiny] % source_or_number)
+                set_of_data[destiny] = temp_number
+                register['rdx'] = remainder_number
+                return True
+            elif isinstance(source_or_number, str):
+                if source_or_number in register:
+                    temp_number = int(set_of_data[destiny] / register[source_or_number])
+                    remainder_number = int(set_of_data[destiny] % register[source_or_number])
+                    set_of_data[destiny] = temp_number
+                    register['rdx'] = remainder_number
+                    return True
+                elif source_or_number in set_of_data:
+                    temp_number = int(set_of_data[destiny] / set_of_data[source_or_number])
+                    remainder_number = int(set_of_data[destiny] % set_of_data[source_or_number])
+                    set_of_data[destiny] = temp_number
+                    register['rdx'] = remainder_number
+                    return True
+                else:
+                    return False
+        if destiny in register:
+            if isinstance(source_or_number, int):
+                temp_number = int(register[destiny] / source_or_number)
+                remainder_number = int(register[destiny] % source_or_number)
+                register[destiny] = temp_number
+                register['rdx'] = remainder_number
+                return True
+            elif isinstance(source_or_number, str):
+                if source_or_number in register:
+                    temp_number = int(register[destiny] / register[source_or_number])
+                    remainder_number = int(register[destiny] % register[source_or_number])
+                    register[destiny] = temp_number
+                    register['rdx'] = remainder_number
+                    return True
+                elif source_or_number in set_of_data:
+                    temp_number = int(register[destiny] / set_of_data[source_or_number])
+                    remainder_number = int(register[destiny] % set_of_data[source_or_number])
+                    register[destiny] = temp_number
+                    register['rdx'] = remainder_number
+                    return True
+                else:
+                    return False
+        return False
+
+    ### mul
+    def mul(source):
+        temp_number = 0
+        if isinstance(source, str):
+            if source in register:
+                temp_number = int(register['rax']) * int(register[source])
+            elif source in set_of_data:
+                temp_number = int(register['rax']) * int(set_of_data[source])
+            else:
+                return False
+            register['rax'] = temp_number
+            return True
+        elif isinstance(source, int):
+            temp_number = int(register['rax']) * source
+            register['rax'] = temp_number
+            return True
+        return False
+
     error_text = "No errors found"
     if (len(sys.argv) == 1):
         print("No arguments given when running the assembler")
         return
 
     file_name = sys.argv[1]
-    f = open(file_name, "r")
+    write_readmode = {'python_instance' : subprocess.run, 'read' : "r"}
+    f = open(file_name, write_readmode['read'])
+    base = 32
 
     Lines = f.readlines() 
     source_code = [] # Store the source code as a list of lines of code
@@ -219,21 +364,99 @@ def main():
         elif (line_re := re.search(r"(mov){1}", line)): # if the mov instruction is written in any different way raise an Error
             error_text = f"in line {lines_count}: not a valid mov instruction"
             raise ValueError(error_text)
+
+        #### add
+        elif (line_re := re.search(r"(add){1} \w+,\w+$", line)):
+            if (section_text == False):
+                error_text = f"in line {lines_count} {line_re.group()} needs to be after section .text"
+                raise ValueError(error_text)
+            s = re.split(r'(add){1} (\w+)(,){1}(\w+)', line) # result is gonna be '', 'add', 'destiny', ',', 'source'
+            if (re.search(r'^[0-9]+$', s[4])): # send the source as a number
+                if (add(s[2], int(s[4])) == False): # execute the add instruction, if the value returned is false something happened;
+                    # source or destiny might not exist
+                    error_text = f"in line {lines_count}: {line_re.group()} is invalid, source or destiny might not exist"
+                    raise ValueError(error_text)
+            else: # send the source as a string, this means is any other register or a variable stored at set_of_data
+                if (add(s[2], s[4]) == False):# execute the add instruction, if the value returned is false something happened;
+                    # source or destiny might not exist
+                    error_text = f"in line {lines_count}: {line_re.group()} is invalid, source or destiny might not exist"
+                    raise ValueError(error_text)
+            if (check_registers() == False): # if an unexistent register is used an error is gonna be raised
+                error_text = f"in line {lines_count}: {s[2]} is a non-valid register"
+                raise ValueError()
+            verbose_msg(f"add: {line_re.group()} is valid in the context of the compiler", verbose)
+        elif (line_re := re.search(r"(add){1}", line)): # if the add instruction is written in any different way raise an Error
+            error_text = f"in line {lines_count}: not a valid add instruction"
+            raise ValueError(error_text)  
+
+        #### div
+        elif (line_re := re.search(r"(div){1} \w+,\w+$", line)):
+            if (section_text == False):
+                error_text = f"in line {lines_count} {line_re.group()} needs to be after section .text"
+                raise ValueError(error_text)
+            s = re.split(r'(div){1} (\w+)(,){1}(\w+)', line) # result is gonna be '', 'div', 'destiny', ',', 'source'
+            if (re.search(r'^[0-9]+$', s[4])): # send the source as a number
+                if (div(s[2], int(s[4])) == False): # execute the add instruction, if the value returned is false something happened;
+                    # source or destiny might not exist
+                    error_text = f"in line {lines_count}: {line_re.group()} is invalid, source or destiny might not exist"
+                    raise ValueError(error_text)
+            else: # send the source as a string, this means is any other register or a variable stored at set_of_data
+                if (div(s[2], s[4]) == False):# execute the add instruction, if the value returned is false something happened;
+                    # source or destiny might not exist
+                    error_text = f"in line {lines_count}: {line_re.group()} is invalid, source or destiny might not exist"
+                    raise ValueError(error_text)
+            if (check_registers() == False): # if an unexistent register is used an error is gonna be raised
+                error_text = f"in line {lines_count}: {s[2]} is a non-valid register"
+                raise ValueError()
+            verbose_msg(f"div: {line_re.group()} is valid in the context of the compiler", verbose)
+        elif (line_re := re.search(r"(div){1}", line)): # if the add instruction is written in any different way raise an Error
+            error_text = f"in line {lines_count}: not a valid add instruction"
+            raise ValueError(error_text) 
+
+        #### mul
+        elif (line_re := re.search(r"(mul){1} \w+$", line)):
+            s = re.split(r'(mul){1} (\w+)$', line)
+            if (re.search(r'^[0-9]+$', s[2])):
+                if (mul(int(s[2])) == False):
+                    error_text = f"in line {lines_count}: {line_re.group()} is invalid, source does not exists"
+                    raise ValueError(error_text)
+            else: 
+                if (mul(s[2]) == False):
+                    error_text = f"in line {lines_count}: {line_re.group()} is invalid, source does not exists"
+                    raise ValueError(error_text)
+            verbose_msg(f"mul: {line_re.group()} is a valid multiplication", verbose)
+        elif (line_re := re.search(r"(mul){1}", line)):
+            error_text = f"in line {lines_count}: mul instruction is not valid"
+            raise ValueError(error_text)
+
+        #### sub
+        elif (line_re := re.search(r"(sub){1} \w+,\w+$", line)):
+            if (section_text == False):
+                error_text = f"in line {lines_count} {line_re.group()} needs to be after section .text"
+                raise ValueError(error_text)
+            s = re.split(r'(sub){1} (\w+)(,){1}(\w+)', line) # result is gonna be '', 'sub', 'destiny', ',', 'source'
+            if (re.search(r'^[0-9]+$', s[4])): # send the source as a number
+                if (sub(s[2], int(s[4])) == False): # execute the sub instruction, if the value returned is false something happened;
+                    # source or destiny might not exist
+                    error_text = f"in line {lines_count}: {line_re.group()} is invalid, source or destiny might not exist"
+                    raise ValueError(error_text)
+            else: # send the source as a string, this means is any other register or a variable stored at set_of_data
+                if (sub(s[2], s[4]) == False):# execute the sub instruction, if the value returned is false something happened;
+                    # source or destiny might not exist
+                    error_text = f"in line {lines_count}: {line_re.group()} is invalid, source or destiny might not exist"
+                    raise ValueError(error_text)
+            if (check_registers() == False): # if an unexistent register is used an error is gonna be raised
+                error_text = f"in line {lines_count}: {s[2]} is a non-valid register"
+                raise ValueError()
+            verbose_msg(f"sub: {line_re.group()} is valid in the context of the compiler", verbose)
+        elif (line_re := re.search(r"(sub){1}", line)): # if the sub instruction is written in any different way raise an Error
+            error_text = f"in line {lines_count}: not a valid sub instruction"
+            raise ValueError(error_text)   
         source_code.append(line)
 
-    print(register)
-    print(set_of_data)
-
-    if verbose:
-        print("📄 Source code:")
-        for i in source_code:
-            print(f"{i}", end='')
-        print("\n")
-        print("⚙️  Details")
-        print("Platform: Linux x64")
-        print("File type: Assembly code")
-        print("Number of lines:", lines_count)
+        
+    # Write .o file
+    #write_readmode['python_instance']([write_path,of['o'](base+13)+object_settings[0]+"64",file_name],stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
     
-
 if __name__ == '__main__':
     main()
